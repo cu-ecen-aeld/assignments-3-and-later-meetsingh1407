@@ -9,13 +9,14 @@
 */
 bool do_system(const char *cmd)
 {
-
+    // printf("_____________________________________________________________________________________________*\n");
 /*
  * TODO  add your code here
  *  Call the system() function with the command set in the cmd
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+    system(cmd);
 
     return true;
 }
@@ -36,6 +37,7 @@ bool do_system(const char *cmd)
 
 bool do_exec(int count, ...)
 {
+    // printf("_____________________________________________________________________________________________*\n");
     va_list args;
     va_start(args, count);
     char * command[count+1];
@@ -57,7 +59,31 @@ bool do_exec(int count, ...)
  *   (first argument to execv), and use the remaining arguments
  *   as second argument to the execv() command.
  *
+
 */
+    pid_t child_pid; 
+
+    if((child_pid = fork()) == -1){
+        perror("Unalbe to fork.");
+        va_end(args);
+        return false; 
+    }
+
+    if(child_pid){
+        //parent
+        int status;
+        wait(&status); 
+        
+        if (WIFEXITED(status) && WEXITSTATUS(status)) {
+            va_end(args);
+            return false;
+        }
+
+    }else{
+        //child
+        execv(command[0], command);
+        exit(errno);
+    }
 
     va_end(args);
 
@@ -71,6 +97,7 @@ bool do_exec(int count, ...)
 */
 bool do_exec_redirect(const char *outputfile, int count, ...)
 {
+    printf("_____________________________________________________________________________________________*\n");
     va_list args;
     va_start(args, count);
     char * command[count+1];
@@ -83,6 +110,25 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
     command[count] = command[count];
+    int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+    if (fd < 0) { perror("open"); return false; }
+    
+    pid_t child_pid = fork(); 
+    if(child_pid < 0){ 
+        exit(EXIT_FAILURE); 
+    }
+
+    if(child_pid == 0){
+        printf("child process execution\n");
+        if(dup2(fd, STDOUT_FILENO) < 0){
+            perror("dup2");
+        }
+        close(fd);
+        execvp(command[0], command);
+    }else{
+        int status;
+        waitpid(child_pid, &status, 0);
+    }
 
 
 /*
@@ -97,3 +143,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
 
     return true;
 }
+
+
+
+
